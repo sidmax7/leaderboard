@@ -73,11 +73,11 @@ export default function Leaderboard() {
 
   return (
     <div className="min-h-screen animated-gradient flex flex-col items-center justify-center p-8">
-      <h1 className="text-6xl font-bold mb-12 text-center text-white drop-shadow-lg">
+      <h1 className="text-6xl font-bold mb-12 text-center text-white drop-shadow-lg text-shadow-lg tracking-wider">
         <Trophy className="inline-block mr-4 text-yellow-400" />
         Leaderboard
       </h1>
-      <div className="max-w-4xl w-full mx-auto bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg rounded-2xl overflow-hidden shadow-2xl mb-12">
+      <div className="max-w-4xl w-full mx-auto bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg rounded-2xl overflow-hidden shadow-2xl mb-12 ">
         <Table>
           <TableHeader>
             <TableRow className="border-b border-white border-opacity-20">
