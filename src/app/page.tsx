@@ -1,101 +1,154 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useState, useEffect, useRef } from 'react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { db } from '../firebaseConfig' // Import Firestore instance
+import { collection, getDocs, updateDoc, doc, addDoc, query, orderBy } from 'firebase/firestore'
+import { PlusCircle, ChevronUp, Trophy } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+
+type LeaderboardEntry = {
+  rank: number
+  id: string
+  userId: string
+  referralCount: number
+}
+
+export default function Leaderboard() {
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([])
+  const [newUserId, setNewUserId] = useState('')
+  const prevDataRef = useRef<LeaderboardEntry[]>([])
+
+  const fetchLeaderboardData = async () => {
+    const leaderboardRef = collection(db, 'leaderboard');
+    const q = query(leaderboardRef, orderBy('referralCount', 'desc'));
+    const querySnapshot = await getDocs(q);
+    
+    const data = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      userId: doc.data().userId,
+      referralCount: doc.data().referralCount,
+      rank: 0,
+    }));
+
+    let currentRank = 0;
+    let prevCount = -1;
+    data.forEach((entry, index) => {
+      if (entry.referralCount !== prevCount) {
+        currentRank = index + 1;
+      }
+      entry.rank = currentRank;
+      prevCount = entry.referralCount;
+    });
+
+    setLeaderboardData(data);
+  }
+
+  useEffect(() => {
+    fetchLeaderboardData()
+  }, [])
+
+  const incrementReferralCount = async (id: string) => {
+    const docRef = doc(db, 'leaderboard', id)
+    await updateDoc(docRef, {
+      referralCount: leaderboardData.find(entry => entry.id === id)!.referralCount + 1
+    })
+    
+    prevDataRef.current = leaderboardData;
+    await fetchLeaderboardData()
+  }
+
+  const addNewUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newUserId.trim() === '') return
+    await addDoc(collection(db, 'leaderboard'), {
+      userId: newUserId,
+      referralCount: 0
+    })
+    setNewUserId('')
+    await fetchLeaderboardData()
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="min-h-screen animated-gradient flex flex-col items-center justify-center p-8">
+      <h1 className="text-6xl font-bold mb-12 text-center text-white drop-shadow-lg">
+        <Trophy className="inline-block mr-4 text-yellow-400" />
+        Leaderboard
+      </h1>
+      <div className="max-w-4xl w-full mx-auto bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg rounded-2xl overflow-hidden shadow-2xl mb-12">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b border-white border-opacity-20">
+              <TableHead className="text-white font-bold text-xl text-center py-6">Rank</TableHead>
+              <TableHead className="text-white font-bold text-xl text-center py-6">User ID</TableHead>
+              <TableHead className="text-white font-bold text-xl text-center py-6">Referral Count</TableHead>
+              <TableHead className="text-white font-bold text-xl text-center py-6">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <AnimatePresence initial={false}>
+              {leaderboardData.map((entry, index) => (
+                <motion.tr
+                  key={entry.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 500,
+                    damping: 30,
+                    mass: 1
+                  }}
+                  className="hover:bg-white hover:bg-opacity-10 transition-colors"
+                  layout
+                  style={{ position: 'relative' }}
+                >
+                  <TableCell className="font-medium text-white text-center text-2xl">
+                    <motion.div layout>{entry.rank}</motion.div>
+                  </TableCell>
+                  <TableCell className="text-white text-center text-lg">
+                    <motion.div layout>{entry.userId}</motion.div>
+                  </TableCell>
+                  <TableCell className="text-white text-center text-lg font-semibold">
+                    <motion.div layout>{entry.referralCount}</motion.div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <motion.div layout>
+                      <Button 
+                        onClick={() => incrementReferralCount(entry.id)}
+                        className="bg-white hover:bg-opacity-90 text-pink-500 font-semibold rounded-full px-6 py-3 transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg"
+                      >
+                        <ChevronUp className="w-5 h-5 mr-2" />
+                        Increment
+                      </Button>
+                    </motion.div>
+                  </TableCell>
+                </motion.tr>
+              ))}
+            </AnimatePresence>
+          </TableBody>
+        </Table>
+      </div>
+      <form onSubmit={addNewUser} className="w-full max-w-md">
+        <div className="flex items-center space-x-4">
+          <Input
+            type="text"
+            placeholder="Enter new user ID" 
+            value={newUserId}
+            onChange={(e) => setNewUserId(e.target.value)}
+            className="flex-grow bg-white bg-opacity-20 text-white placeholder-white placeholder-opacity-100 border-2 border-white border-opacity-30 rounded-full px-6 py-4 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 focus:border-white transition-all duration-300 ease-in-out text-lg"
+          />
+          <Button 
+            type="submit" 
+            className="bg-white hover:bg-opacity-90 text-pink-500 font-semibold rounded-full px-8 py-4 transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg flex items-center text-lg"
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <PlusCircle className="w-6 h-6 mr-2" />
+            Add User
+          </Button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </form>
     </div>
-  );
+  )
 }

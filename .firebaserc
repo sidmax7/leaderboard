@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "leaderboard-4c74e",
+    "leaderboard": "leaderboard-4c74e"
+  },
+  "targets": {},
+  "etags": {},
+  "dataconnectEmulatorConfig": {}
+}
